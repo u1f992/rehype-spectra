@@ -1,8 +1,9 @@
 {
   "name": "@u1f992/rehype-spectroscope",
   "version": "0.1.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
+    "build": "node scripts/generate-prism.js && tsc",
     "test": "cd example && npm run preview"
   },
   "keywords": [],
@@ -11,11 +12,17 @@
   "description": "Prism, running within JSDOM. Provides similar effects to wooorm/refractor while offering broader compatibility with official Prism plugins.",
   "type": "module",
   "dependencies": {
-    "jsdom": "^26.1.0",
-    "prismjs": "^1.30.0",
-    "rehype": "^11.0.0"
+    "@types/hast": "^2.0.0",
+    "hast-util-from-html": "^1.0.2",
+    "hast-util-to-html": "^8.0.4",
+    "jsdom": "^27.4.0",
+    "prismjs": "^1.30.0"
   },
   "devDependencies": {
-    "prettier": "^3.5.3"
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^22.19.5",
+    "prettier": "^3.5.3",
+    "typescript": "^5.9.3",
+    "unified": "^9.0.0"
   }
 }

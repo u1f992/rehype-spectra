@@ -12,3 +12,13 @@ int main(void) {
   return 0;
 }
 ```
+
+### OCaml
+
+```ocaml
+let () = print_endline "Hello world"
+```
+
+### OCaml (file-highlight, line 2 only)
+
+<pre data-src="hello.ml" data-range="2,2"></pre>

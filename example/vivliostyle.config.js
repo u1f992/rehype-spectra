@@ -3,7 +3,6 @@
 import { spectroscope } from "@u1f992/rehype-spectroscope";
 
 import { VFM } from "@vivliostyle/vfm";
-// import { concentrator } from "@u1f992/rehype-concentrator";
 
 /** @type {import('@vivliostyle/cli').VivliostyleConfigSchema} */
 const vivliostyleConfig = {
@@ -12,12 +11,10 @@ const vivliostyleConfig = {
   theme: "./css",
   entry: ["manuscript.md"],
   documentProcessor: (opts, meta) =>
-    VFM(opts, meta)
-      // .use(concentrator)
-      .use(spectroscope, {
-        languages: ["c", "css", "typescript"],
-        plugins: ["line-numbers"],
-      }),
+    VFM(opts, meta).use(spectroscope, {
+      languages: ["c", "css", "typescript", "ocaml"],
+      plugins: ["line-numbers", "file-highlight"],
+    }),
 };
 
 export default vivliostyleConfig;
