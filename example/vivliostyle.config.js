@@ -2,10 +2,9 @@
 
 import { spectroscope } from "@u1f992/rehype-spectroscope";
 
+import { defineConfig } from "@vivliostyle/cli";
 import { VFM } from "@vivliostyle/vfm";
-
-/** @type {import('@vivliostyle/cli').VivliostyleConfigSchema} */
-const vivliostyleConfig = {
+export default defineConfig({
   title: "example",
   author: "u1f992",
   theme: "./css",
@@ -13,9 +12,12 @@ const vivliostyleConfig = {
   documentProcessor: (opts, meta) =>
     VFM(opts, meta).use(spectroscope, {
       // languages: ["c", "typescript", "ocaml", "lua"],
-      plugins: ["autoloader", "line-numbers", "file-highlight"],
+      plugins: [
+        "autoloader",
+        "line-numbers",
+        "file-highlight",
+        "diff-highlight",
+      ],
       stripExistingHighlight: true,
     }),
-};
-
-export default vivliostyleConfig;
+});

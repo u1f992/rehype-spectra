@@ -97,15 +97,47 @@ function getAutoloadedLanguages(html: string): Language[] {
   ctx["__appendedByAutoloader"] = appendedByAutoloader;
   new vm.Script(`
     /**
+     * Override setTimeout to execute synchronously for autoloader's dependency resolution.
+     *
+     * - https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L416
+     * - https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L510
+     */
+    window.setTimeout = (callback, delay, ...args) => {
+      callback(...args);
+      return 0;
+    };
+
+    /**
      * https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L344
      */
     const __document_body_appendChild = document.body.appendChild.bind(
       document.body,
     );
-    document.body.appendChild = (node) =>
-      node.tagName.toLowerCase() === "script" && __appendedByAutoloader.includes(node.src)
-        ? node
-        : __document_body_appendChild(node);
+    const __autoloaderScripts = new Set();
+    document.body.appendChild = (node) => {
+      if (node.tagName.toLowerCase() === "script" && __appendedByAutoloader.includes(node.src)) {
+        __autoloaderScripts.add(node);
+        /**
+         * Immediately trigger onload to let autoloader proceed with dependency chain.
+         *
+         * - https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L336-L339
+         */
+        if (node.onload) {
+          node.onload();
+        }
+        return node;
+      }
+      return __document_body_appendChild(node);
+    };
+
+    const __document_body_removeChild = document.body.removeChild.bind(document.body);
+    document.body.removeChild = (node) => {
+      if (__autoloaderScripts.has(node)) {
+        __autoloaderScripts.delete(node);
+        return node;
+      }
+      return __document_body_removeChild(node);
+    };
 
     /**
      * https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L333
@@ -150,6 +182,33 @@ function getAutoloadedLanguages(html: string): Language[] {
   return appendedByAutoloader
     .map((rawLang) => rawLang.replace(/components\/prism-(.*)\.min\.js/, "$1"))
     .filter((lang) => isLanguage(lang));
+}
+
+/**
+ * Injects a dynamic language loader that works like autoloader.
+ * When Prism encounters an unloaded language, it will be loaded synchronously.
+ */
+function injectDynamicLanguageLoader(ctx: PrismContext): void {
+  ctx["__loadLanguageIfNeeded"] = (lang: string) => {
+    if (isLanguage(lang)) {
+      loadLanguage(ctx, lang as Language);
+      return true;
+    }
+    return false;
+  };
+
+  new vm.Script(`
+    Prism.hooks.add('complete', function(env) {
+      var language = env.language;
+      if (!language || language === 'none') return;
+
+      if (!Prism.languages[language]) {
+        if (__loadLanguageIfNeeded(language)) {
+          Prism.highlightElement(env.element);
+        }
+      }
+    });
+  `).runInContext(ctx);
 }
 
 /**
@@ -210,10 +269,13 @@ export function loadPlugin(
   switch (plugin) {
     // Known plugins that do not work with straightforward methods
     case "autoloader": {
+      // Pre-load languages detected from the HTML
       const langs = getAutoloadedLanguages(html);
       for (const lang of langs) {
         loadLanguage(ctx, lang);
       }
+      // Also inject dynamic loader for languages loaded later (e.g., by file-highlight)
+      injectDynamicLanguageLoader(ctx);
       break;
     }
     case "file-highlight": {

@@ -1,24 +1,26 @@
-### TypeScript
+### TypeScript (line-numbers)
 
-<pre class="language-typescript line-numbers"><code class="language-typescript">(function main(): void {
+```typescript {class="line-numbers"}
+(function main(): void {
   console.log("Hello world");
-})();</code></pre>
-
-### C
-
-```c
-int main(void) {
-  printf("Hello world\n");
-  return 0;
-}
+})();
 ```
 
-### OCaml
+### C (diff-highlight)
+
+```diff-c {class="diff-highlight"}
+  int main(void) {
+-   printf("Hello world\n");
++   return 0;
+  }
+```
+
+### OCaml (not supported by refractor)
 
 ```ocaml
 let () = print_endline "Hello world"
 ```
 
-### Lua (file-highlight, line 2 only)
+### Lua (file-highlight, specify range)
 
 <pre data-src="hello.lua" data-range="2,2"></pre>
