@@ -19,6 +19,6 @@ int main(void) {
 let () = print_endline "Hello world"
 ```
 
-### OCaml (file-highlight, line 2 only)
+### Lua (file-highlight, line 2 only)
 
-<pre data-src="hello.ml" data-range="2,2"></pre>
+<pre data-src="hello.lua" data-range="2,2"></pre>

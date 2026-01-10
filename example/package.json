@@ -1,15 +1,11 @@
 {
   "scripts": {
-    "test:concentrator": "cross-env TEST_CONCENTRATOR=1 vivliostyle preview",
-    "test": "vivliostyle preview"
+    "build": "vivliostyle build",
+    "preview": "vivliostyle preview"
   },
   "type": "module",
   "dependencies": {
-    "@u1f992/rehype-concentrator": "github:u1f992/rehype-concentrator#v0.1.0",
     "@u1f992/rehype-spectroscope": "../",
     "@vivliostyle/cli": "^9.0.2"
-  },
-  "devDependencies": {
-    "cross-env": "^7.0.3"
   }
 }

@@ -12,8 +12,9 @@ const vivliostyleConfig = {
   entry: ["manuscript.md"],
   documentProcessor: (opts, meta) =>
     VFM(opts, meta).use(spectroscope, {
-      languages: ["c", "css", "typescript", "ocaml"],
-      plugins: ["line-numbers", "file-highlight"],
+      // languages: ["c", "typescript", "ocaml", "lua"],
+      plugins: ["autoloader", "line-numbers", "file-highlight"],
+      stripExistingHighlight: true,
     }),
 };
 

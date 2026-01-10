@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { createRequire } from "node:module";
+import path from "node:path";
 import vm from "node:vm";
 
 import { JSDOM } from "jsdom";
@@ -151,11 +152,61 @@ function getAutoloadedLanguages(html: string): Language[] {
     .filter((lang) => isLanguage(lang));
 }
 
+/**
+ * Injects an XMLHttpRequest stub that reads files from the local filesystem.
+ * This is required for the file-highlight plugin to work in a Node.js environment.
+ */
+function injectXhrStub(ctx: PrismContext, baseDir: string): void {
+  ctx["__xhrBaseDir"] = baseDir;
+  ctx["__xhrReadFileSync"] = (filePath: string) => {
+    const resolvedPath = path.resolve(baseDir, filePath);
+    return fs.readFileSync(resolvedPath, "utf-8");
+  };
+  new vm.Script(`
+    window.XMLHttpRequest = class XMLHttpRequest {
+      constructor() {
+        this.readyState = 0;
+        this.status = 0;
+        this.statusText = "";
+        this.responseText = "";
+        this.onreadystatechange = null;
+        this._method = "";
+        this._url = "";
+      }
+      open(method, url, async) {
+        this._method = method;
+        this._url = url;
+      }
+      send(body) {
+        try {
+          this.responseText = __xhrReadFileSync(this._url);
+          this.status = 200;
+          this.statusText = "OK";
+        } catch (e) {
+          this.status = 404;
+          this.statusText = "Not Found";
+          this.responseText = "";
+        }
+        this.readyState = 4;
+        if (this.onreadystatechange) {
+          this.onreadystatechange();
+        }
+      }
+    };
+  `).runInContext(ctx);
+}
+
+export type LoadPluginOptions = {
+  html: string;
+  baseDir?: string | undefined;
+};
+
 export function loadPlugin(
   ctx: PrismContext,
   plugin: Plugin,
-  html: string,
+  options: LoadPluginOptions,
 ): void {
+  const { html, baseDir } = options;
   switch (plugin) {
     // Known plugins that do not work with straightforward methods
     case "autoloader": {
@@ -163,6 +214,13 @@ export function loadPlugin(
       for (const lang of langs) {
         loadLanguage(ctx, lang);
       }
+      break;
+    }
+    case "file-highlight": {
+      if (baseDir) {
+        injectXhrStub(ctx, baseDir);
+      }
+      loadPluginDirectly(ctx, plugin);
       break;
     }
     default: {

@@ -13,25 +13,47 @@ import {
   loadPlugin,
 } from "./prism.js";
 
+/**
+ * https://github.com/wooorm/refractor/blob/5.0.0/lib/prism-core.js#L7
+ */
+const CODE_BLOCK_SELECTOR =
+  'pre[class*="language-"] > code, ' +
+  'pre > code[class*="language-"], ' +
+  'pre[class*="lang-"] > code, ' +
+  'pre > code[class*="lang-"]';
+
 export type Config = {
-  languages: readonly PrismLanguage[];
-  plugins: readonly PrismPlugin[];
+  languages?: readonly PrismLanguage[];
+  plugins?: readonly PrismPlugin[];
+  stripExistingHighlight?: boolean | { selector: string };
 };
 
-export const spectroscope: unified.Plugin<[Partial<Config>]> = (config) => {
+export const spectroscope: unified.Plugin<[Config]> = (config) => {
   const languages = config.languages ?? [];
   const plugins = config.plugins ?? [];
+  const stripExistingHighlight = config.stripExistingHighlight ?? false;
 
-  return (node) => {
+  return (node, file) => {
     const html = toHtml(node as hast.Root);
     const jsdom = new JSDOM(html, { runScripts: "dangerously" });
+
+    if (stripExistingHighlight) {
+      const selector =
+        typeof stripExistingHighlight === "object" &&
+        "selector" in stripExistingHighlight
+          ? stripExistingHighlight.selector
+          : CODE_BLOCK_SELECTOR;
+      jsdom.window.document.querySelectorAll(selector).forEach((elem) => {
+        elem.textContent = elem.textContent;
+      });
+    }
 
     const ctx = loadPrism(jsdom.getInternalVMContext(), true);
     for (const language of languages) {
       loadLanguage(ctx, language);
     }
     for (const plugin of plugins) {
-      loadPlugin(ctx, plugin, html);
+      loadPlugin(ctx, plugin, { html, baseDir: file.dirname });
     }
     highlightManually(ctx);
 

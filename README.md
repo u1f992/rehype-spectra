@@ -12,7 +12,6 @@ $ npm install git://github.com/u1f992/rehype-spectroscope#v0.1.0
 import { spectroscope } from "@u1f992/rehype-spectroscope";
 
 import { VFM } from "@vivliostyle/vfm";
-// import { concentrator } from "@u1f992/rehype-concentrator";
 
 /** @type {import('@vivliostyle/cli').VivliostyleConfigSchema} */
 const vivliostyleConfig = {
