@@ -11,13 +11,11 @@ export default defineConfig({
   entry: ["manuscript.md"],
   documentProcessor: (opts, meta) =>
     VFM(opts, meta).use(spectroscope, {
-      // languages: ["c", "typescript", "ocaml", "lua"],
       plugins: [
         "autoloader",
         "line-numbers",
         "file-highlight",
         "diff-highlight",
       ],
-      stripExistingHighlight: true,
     }),
 });
