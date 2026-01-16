@@ -5,8 +5,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@u1f992/rehype-spectroscope": "../",
-    "@vivliostyle/cli": "^10.2.1",
-    "@vivliostyle/vfm": "^2.5.0"
+    "@u1f992/rehype-spectra": "../",
+    "@vivliostyle/cli": "^10.3.0"
   }
 }

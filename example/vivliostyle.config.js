@@ -1,16 +1,16 @@
 // @ts-check
 
-import { spectroscope } from "@u1f992/rehype-spectroscope";
+import { spectra } from "@u1f992/rehype-spectra";
 
-import { defineConfig } from "@vivliostyle/cli";
-import { VFM } from "@vivliostyle/vfm";
+import { defineConfig, VFM } from "@vivliostyle/cli";
+
 export default defineConfig({
   title: "example",
   author: "u1f992",
   theme: "./css",
   entry: ["manuscript.md"],
   documentProcessor: (opts, meta) =>
-    VFM(opts, meta).use(spectroscope, {
+    VFM(opts, meta).use(spectra, {
       plugins: [
         "autoloader",
         "line-numbers",

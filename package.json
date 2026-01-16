@@ -1,8 +1,10 @@
 {
-  "name": "@u1f992/rehype-spectroscope",
+  "name": "@u1f992/rehype-spectra",
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
+    "lint": "eslint --fix",
+    "format": "prettier --write .",
     "build": "node scripts/generate-prism.js && tsc",
     "test": "cd example && npm run preview"
   },
@@ -19,10 +21,14 @@
     "prismjs": "^1.30.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/jsdom": "^27.0.0",
     "@types/node": "^22.19.5",
+    "eslint": "^9.39.2",
+    "globals": "^17.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.0",
     "unified": "^9.0.0"
   }
 }

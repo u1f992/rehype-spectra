@@ -1,0 +1,4 @@
+# https://prettier.io/docs/ignore.html#ignoring-files-prettierignore
+package-lock.json
+example/.vivliostyle/
+example/css/prism.css

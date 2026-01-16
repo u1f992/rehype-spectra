@@ -28,7 +28,7 @@ export type Config = {
   stripExistingHighlight?: boolean | { selector: string };
 };
 
-export const spectroscope: unified.Plugin<[Config]> = (config) => {
+export const spectra: unified.Plugin<[Config]> = (config) => {
   const languages = config.languages ?? [];
   const plugins = config.plugins ?? [];
   const stripExistingHighlight = config.stripExistingHighlight ?? false;
