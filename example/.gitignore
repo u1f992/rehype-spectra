@@ -1,2 +1,3 @@
 .vivliostyle
 *.pdf
+package-lock.json
