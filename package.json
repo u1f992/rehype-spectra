@@ -1,6 +1,6 @@
 {
   "name": "@u1f992/rehype-spectra",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
     "lint": "eslint --fix",
