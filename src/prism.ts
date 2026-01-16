@@ -1,14 +1,18 @@
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import url from "node:url";
 import vm from "node:vm";
 
 import { JSDOM } from "jsdom";
 
-import { LANGUAGES, PLUGINS, LANGUAGE_DEPENDENCIES } from "./prism-constants.js";
+import {
+  LANGUAGES,
+  PLUGINS,
+  LANGUAGE_DEPENDENCIES,
+} from "./prism-constants.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
 const loadedLanguagesKey = Symbol();

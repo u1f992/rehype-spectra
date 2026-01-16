@@ -4,6 +4,8 @@
  * @see https://prettier.io/docs/configuration
  * @type {import("prettier").Config}
  */
-const prettierConfig = {};
+const prettierConfig = {
+  htmlWhitespaceSensitivity: "strict",
+};
 
 export default prettierConfig;

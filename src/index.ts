@@ -35,10 +35,10 @@ export type Config = {
   stripExistingHighlight?: boolean | { selector: string };
 };
 
-export const spectra: unified.Plugin<[Config]> = (config) => {
-  const languages = config.languages ?? [];
-  const plugins = config.plugins ?? [];
-  const stripExistingHighlightFlag = config.stripExistingHighlight ?? false;
+export const spectra: unified.Plugin<[Config?]> = (config) => {
+  const languages = config?.languages ?? [];
+  const plugins = config?.plugins ?? [];
+  const stripExistingHighlightFlag = config?.stripExistingHighlight ?? false;
 
   return (node, file) => {
     const html = toHtml(node as hast.Root);

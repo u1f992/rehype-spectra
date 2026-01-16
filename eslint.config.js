@@ -12,7 +12,11 @@ const eslintConfig = defineConfig(
   eslint.configs.recommended,
   tseslint.configs.recommended,
   // https://eslint.org/docs/latest/use/configure/migration-guide#configuring-language-options
-  { languageOptions: { globals: { ...globals.node } } },
+  {
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
   // https://eslint.org/docs/latest/use/configure/ignore#ignoring-directories
   globalIgnores(["dist/", "example/"]),
 );
