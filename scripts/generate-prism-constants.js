@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const projectRootDir = path.resolve(path.join(import.meta.dirname, ".."));
-const outputFile = path.join(projectRootDir, "src", "_prism.ts");
+const outputFile = path.join(projectRootDir, "src", "prism-constants.ts");
 const prismjsDir = path.join(projectRootDir, "node_modules", "prismjs");
 /**
  * ```

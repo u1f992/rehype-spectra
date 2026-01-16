@@ -5,7 +5,7 @@
   "scripts": {
     "lint": "eslint --fix",
     "format": "prettier --write .",
-    "build": "node scripts/generate-prism.js && tsc",
+    "build": "node scripts/generate-prism-constants.js && tsc && node scripts/strip-patch-exports.js",
     "preview": "npm --prefix example run preview"
   },
   "keywords": [],

@@ -22,6 +22,13 @@ const CODE_BLOCK_SELECTOR =
   'pre[class*="lang-"] > code, ' +
   'pre > code[class*="lang-"]';
 
+function stripExistingHighlight(jsdom: JSDOM, selector: string) {
+  jsdom.window.document.querySelectorAll(selector).forEach((elem) => {
+    const textContent = elem.textContent;
+    elem.textContent = textContent;
+  });
+}
+
 export type Config = {
   languages?: readonly PrismLanguage[];
   plugins?: readonly PrismPlugin[];
@@ -31,31 +38,26 @@ export type Config = {
 export const spectra: unified.Plugin<[Config]> = (config) => {
   const languages = config.languages ?? [];
   const plugins = config.plugins ?? [];
-  const stripExistingHighlight = config.stripExistingHighlight ?? false;
+  const stripExistingHighlightFlag = config.stripExistingHighlight ?? false;
 
   return (node, file) => {
     const html = toHtml(node as hast.Root);
     const jsdom = new JSDOM(html, { runScripts: "dangerously" });
 
-    if (stripExistingHighlight) {
+    if (stripExistingHighlightFlag) {
       const selector =
-        typeof stripExistingHighlight === "object" &&
-        "selector" in stripExistingHighlight
-          ? stripExistingHighlight.selector
+        typeof stripExistingHighlightFlag === "object" &&
+        "selector" in stripExistingHighlightFlag
+          ? stripExistingHighlightFlag.selector
           : CODE_BLOCK_SELECTOR;
-      jsdom.window.document.querySelectorAll(selector).forEach((elem) => {
-        const textContent = elem.textContent;
-        elem.textContent = textContent;
-      });
+      stripExistingHighlight(jsdom, selector);
     }
 
     const ctx = loadPrism(jsdom.getInternalVMContext(), true);
-    for (const language of languages) {
-      loadLanguage(ctx, language);
-    }
-    for (const plugin of plugins) {
-      loadPlugin(ctx, plugin, { html, baseDir: file.dirname });
-    }
+    languages.forEach((language) => loadLanguage(ctx, language));
+    plugins.forEach((plugin) =>
+      loadPlugin(ctx, plugin, { html, baseDir: file.dirname }),
+    );
     highlightManually(ctx);
 
     return fromHtml(jsdom.serialize());

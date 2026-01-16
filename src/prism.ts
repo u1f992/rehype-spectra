@@ -1,11 +1,15 @@
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 import { JSDOM } from "jsdom";
 
-import { LANGUAGES, PLUGINS, LANGUAGE_DEPENDENCIES } from "./_prism.js";
+import { LANGUAGES, PLUGINS, LANGUAGE_DEPENDENCIES } from "./prism-constants.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
 
 const loadedLanguagesKey = Symbol();
 const prismContextBrand = Symbol();
@@ -14,24 +18,23 @@ export type PrismContext = vm.Context & {
   [loadedLanguagesKey]?: Set<Language>;
 };
 
-const require = createRequire(import.meta.url);
-function readModule(moduleName: string): vm.Script {
-  const modulePath = require.resolve(moduleName);
-  const moduleContent = fs.readFileSync(modulePath, { encoding: "utf-8" });
-  return new vm.Script(moduleContent);
+const moduleCache = new Map<string, vm.Script>();
+function readModule(moduleName: string): Pick<vm.Script, "runInContext"> {
+  return {
+    runInContext(ctx) {
+      let cached = moduleCache.get(moduleName);
+      if (!cached) {
+        const modulePath = require.resolve(moduleName);
+        const moduleContent = fs.readFileSync(modulePath, {
+          encoding: "utf-8",
+        });
+        cached = new vm.Script(moduleContent);
+        moduleCache.set(moduleName, cached);
+      }
+      return cached.runInContext(ctx);
+    },
+  };
 }
-
-/**
- * - https://prismjs.com/#manual-highlighting
- * - https://github.com/PrismJS/prism/blob/v1.30.0/prism.js#L1189-L1206
- */
-const DISABLE_AUTO_HIGHLIGHTING = new vm.Script(
-  "window.Prism = window.Prism || {}; window.Prism.manual = true;",
-);
-function disableAutoHighlighting(ctx: vm.Context): void {
-  DISABLE_AUTO_HIGHLIGHTING.runInContext(ctx);
-}
-
 /**
  * The difference between "prismjs" and "prismjs/components/prism-core.js"
  * is the presence of pre-enabled languages and plugins.
@@ -39,6 +42,33 @@ function disableAutoHighlighting(ctx: vm.Context): void {
  * - https://github.com/PrismJS/prism/blob/v1.30.0/gulpfile.js/paths.js#L8-L15
  */
 const CORE_MODULE = readModule("prismjs/components/prism-core.js");
+
+function readPatch(patchName: string): Pick<vm.Script, "runInContext"> {
+  let cached: vm.Script | undefined;
+  return {
+    runInContext(ctx) {
+      if (!cached) {
+        const patchPath = path.join(__dirname, "patches", patchName);
+        const patchContent = fs.readFileSync(patchPath, { encoding: "utf-8" });
+        cached = new vm.Script(patchContent);
+      }
+      return cached.runInContext(ctx);
+    },
+  };
+}
+const AUTOLOADER_OVERRIDE = readPatch("autoloader-override.js");
+const DISABLE_AUTO_HIGHLIGHTING = readPatch("disable-auto-highlighting.js");
+const DYNAMIC_LANGUAGE_LOADER = readPatch("dynamic-language-loader.js");
+const HIGHLIGHT_MANUALLY = readPatch("highlight-manually.js");
+const XHR_STUB = readPatch("xhr-stub.js");
+
+function disableAutoHighlighting(ctx: vm.Context): void {
+  DISABLE_AUTO_HIGHLIGHTING.runInContext(ctx);
+}
+export function highlightManually(ctx: PrismContext): void {
+  HIGHLIGHT_MANUALLY.runInContext(ctx);
+}
+
 export function loadPrism(ctx: vm.Context, manual: boolean): PrismContext {
   if (manual) {
     disableAutoHighlighting(ctx);
@@ -51,13 +81,16 @@ export type Language = (typeof LANGUAGES)[number];
 function isLanguage(language: string): language is Language {
   return (LANGUAGES as readonly string[]).includes(language);
 }
+function loadModuleDirectly<T extends string>(
+  ctx: PrismContext,
+  name: T,
+  resolver: (name: T) => string,
+): void {
+  readModule(resolver(name)).runInContext(ctx);
+}
+
 function resolveLanguage(language: Language): string {
   return `prismjs/components/prism-${language}.js`;
-}
-function loadLanguageDirectly(ctx: PrismContext, language: Language): void {
-  const moduleName = resolveLanguage(language);
-  const module = readModule(moduleName);
-  module.runInContext(ctx);
 }
 export function loadLanguage(ctx: PrismContext, language: Language): void {
   if (!ctx[loadedLanguagesKey]) {
@@ -66,27 +99,19 @@ export function loadLanguage(ctx: PrismContext, language: Language): void {
   if (ctx[loadedLanguagesKey].has(language)) {
     return;
   }
-
   const deps = LANGUAGE_DEPENDENCIES[language];
   if (deps) {
     for (const dep of deps) {
       loadLanguage(ctx, dep);
     }
   }
-  loadLanguageDirectly(ctx, language);
+  loadModuleDirectly(ctx, language, resolveLanguage);
   ctx[loadedLanguagesKey].add(language);
 }
 
 export type Plugin = (typeof PLUGINS)[number];
-function resolvePlugin(
-  plugin: Plugin,
-): `prismjs/plugins/${Plugin}/prism-${Plugin}.js` {
+function resolvePlugin(plugin: Plugin): string {
   return `prismjs/plugins/${plugin}/prism-${plugin}.js`;
-}
-function loadPluginDirectly(ctx: PrismContext, plugin: Plugin) {
-  const moduleName = resolvePlugin(plugin);
-  const module = readModule(moduleName);
-  module.runInContext(ctx);
 }
 
 function getAutoloadedLanguages(html: string): Language[] {
@@ -95,88 +120,9 @@ function getAutoloadedLanguages(html: string): Language[] {
 
   const appendedByAutoloader: string[] = [];
   ctx["__appendedByAutoloader"] = appendedByAutoloader;
-  new vm.Script(`
-    /**
-     * Override setTimeout to execute synchronously for autoloader's dependency resolution.
-     *
-     * - https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L416
-     * - https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L510
-     */
-    window.setTimeout = (callback, delay, ...args) => {
-      callback(...args);
-      return 0;
-    };
+  AUTOLOADER_OVERRIDE.runInContext(ctx);
 
-    /**
-     * https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L344
-     */
-    const __document_body_appendChild = document.body.appendChild.bind(
-      document.body,
-    );
-    const __autoloaderScripts = new Set();
-    document.body.appendChild = (node) => {
-      if (node.tagName.toLowerCase() === "script" && __appendedByAutoloader.includes(node.src)) {
-        __autoloaderScripts.add(node);
-        /**
-         * Immediately trigger onload to let autoloader proceed with dependency chain.
-         *
-         * - https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L336-L339
-         */
-        if (node.onload) {
-          node.onload();
-        }
-        return node;
-      }
-      return __document_body_appendChild(node);
-    };
-
-    const __document_body_removeChild = document.body.removeChild.bind(document.body);
-    document.body.removeChild = (node) => {
-      if (__autoloaderScripts.has(node)) {
-        __autoloaderScripts.delete(node);
-        return node;
-      }
-      return __document_body_removeChild(node);
-    };
-
-    /**
-     * https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L333
-     */
-    const __document_createElement = document.createElement.bind(document);
-    document.createElement = (tagName, options) => {
-      const elem = __document_createElement(tagName, options);
-      if (tagName.toLowerCase() !== "script") {
-        return elem;
-      }
-
-      /**
-       * https://github.com/PrismJS/prism/blob/v1.30.0/plugins/autoloader/prism-autoloader.js#L334
-       */
-      const elemProto = Object.getPrototypeOf(elem);
-      const elemSrc = Object.getOwnPropertyDescriptor(elemProto, "src");
-      Object.defineProperty(elem, "src", {
-        set(value) {
-          __appendedByAutoloader.push(value);
-          if (elemSrc && elemSrc.set) {
-            elemSrc.set.call(this, value);
-          } else {
-            this.setAttribute("src", value);
-          }
-        },
-        get() {
-          if (elemSrc && elemSrc.get) {
-            return elemSrc.get.call(this);
-          }
-          return this.getAttribute("src");
-        },
-        configurable: true,
-        enumerable: true,
-      });
-      return elem;
-    };
-  `).runInContext(ctx);
-
-  loadPluginDirectly(ctx, "autoloader");
+  loadModuleDirectly(ctx, "autoloader", resolvePlugin);
   highlightManually(ctx);
 
   return appendedByAutoloader
@@ -196,19 +142,7 @@ function injectDynamicLanguageLoader(ctx: PrismContext): void {
     }
     return false;
   };
-
-  new vm.Script(`
-    Prism.hooks.add('complete', function(env) {
-      var language = env.language;
-      if (!language || language === 'none') return;
-
-      if (!Prism.languages[language]) {
-        if (__loadLanguageIfNeeded(language)) {
-          Prism.highlightElement(env.element);
-        }
-      }
-    });
-  `).runInContext(ctx);
+  DYNAMIC_LANGUAGE_LOADER.runInContext(ctx);
 }
 
 /**
@@ -221,38 +155,7 @@ function injectXhrStub(ctx: PrismContext, baseDir: string): void {
     const resolvedPath = path.resolve(baseDir, filePath);
     return fs.readFileSync(resolvedPath, "utf-8");
   };
-  new vm.Script(`
-    window.XMLHttpRequest = class XMLHttpRequest {
-      constructor() {
-        this.readyState = 0;
-        this.status = 0;
-        this.statusText = "";
-        this.responseText = "";
-        this.onreadystatechange = null;
-        this._method = "";
-        this._url = "";
-      }
-      open(method, url, async) {
-        this._method = method;
-        this._url = url;
-      }
-      send(body) {
-        try {
-          this.responseText = __xhrReadFileSync(this._url);
-          this.status = 200;
-          this.statusText = "OK";
-        } catch (e) {
-          this.status = 404;
-          this.statusText = "Not Found";
-          this.responseText = "";
-        }
-        this.readyState = 4;
-        if (this.onreadystatechange) {
-          this.onreadystatechange();
-        }
-      }
-    };
-  `).runInContext(ctx);
+  XHR_STUB.runInContext(ctx);
 }
 
 export type LoadPluginOptions = {
@@ -269,12 +172,10 @@ export function loadPlugin(
   switch (plugin) {
     // Known plugins that do not work with straightforward methods
     case "autoloader": {
-      // Pre-load languages detected from the HTML
       const langs = getAutoloadedLanguages(html);
       for (const lang of langs) {
         loadLanguage(ctx, lang);
       }
-      // Also inject dynamic loader for languages loaded later (e.g., by file-highlight)
       injectDynamicLanguageLoader(ctx);
       break;
     }
@@ -282,19 +183,11 @@ export function loadPlugin(
       if (baseDir) {
         injectXhrStub(ctx, baseDir);
       }
-      loadPluginDirectly(ctx, plugin);
+      loadModuleDirectly(ctx, plugin, resolvePlugin);
       break;
     }
     default: {
-      loadPluginDirectly(ctx, plugin);
+      loadModuleDirectly(ctx, plugin, resolvePlugin);
     }
   }
-}
-
-/**
- * - https://github.com/PrismJS/prism/blob/v1.30.0/prism.js#L1183-L1206
- */
-const HIGHLIGHT_MANUALLY = new vm.Script("Prism.highlightAll();");
-export function highlightManually(ctx: PrismContext): void {
-  HIGHLIGHT_MANUALLY.runInContext(ctx);
 }
