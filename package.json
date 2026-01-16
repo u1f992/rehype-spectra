@@ -6,7 +6,7 @@
     "lint": "eslint --fix",
     "format": "prettier --write .",
     "build": "node scripts/generate-prism.js && tsc",
-    "test": "cd example && npm run preview"
+    "preview": "npm --prefix example run preview"
   },
   "keywords": [],
   "author": "Koutaro Mukai",

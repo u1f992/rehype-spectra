@@ -44,7 +44,8 @@ export const spectra: unified.Plugin<[Config]> = (config) => {
           ? stripExistingHighlight.selector
           : CODE_BLOCK_SELECTOR;
       jsdom.window.document.querySelectorAll(selector).forEach((elem) => {
-        elem.textContent = elem.textContent;
+        const textContent = elem.textContent;
+        elem.textContent = textContent;
       });
     }
 
