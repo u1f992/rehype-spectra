@@ -63,6 +63,7 @@ function readPatch(patchName: string): Pick<vm.Script, "runInContext"> {
 const AUTOLOADER_OVERRIDE = readPatch("autoloader-override.js");
 const DISABLE_AUTO_HIGHLIGHTING = readPatch("disable-auto-highlighting.js");
 const DYNAMIC_LANGUAGE_LOADER = readPatch("dynamic-language-loader.js");
+const FIX_DIFF_HIGHLIGHT = readPatch("fix-diff-highlight.js");
 const HIGHLIGHT_MANUALLY = readPatch("highlight-manually.js");
 const XHR_STUB = readPatch("xhr-stub.js");
 
@@ -188,6 +189,12 @@ export function loadPlugin(
         injectXhrStub(ctx, baseDir);
       }
       loadModuleDirectly(ctx, plugin, resolvePlugin);
+      break;
+    }
+    case "diff-highlight": {
+      loadModuleDirectly(ctx, plugin, resolvePlugin);
+      // Apply fix for diff-highlight alignment issue after loading the plugin
+      FIX_DIFF_HIGHLIGHT.runInContext(ctx);
       break;
     }
     default: {

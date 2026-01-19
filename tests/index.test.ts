@@ -4,7 +4,10 @@ import path from "node:path";
 import test from "node:test";
 import url from "node:url";
 
+import type * as hast from "hast"; // ^2
 import rehype from "rehype"; // ^11, unified: ^9
+import type * as unist from "unist"; // ^2
+import { visit } from "unist-util-visit"; // ^4, unist: ^2
 
 import { spectra } from "../dist/index.js";
 
@@ -82,4 +85,54 @@ test("stripExistingHighlight removes previous highlighting", () => {
   const output = String(result);
   assert.ok(output.includes("token"), "Should contain Prism tokens");
   assert.ok(output.includes("const"), "Should contain original code text");
+});
+
+test("diff-highlight alignment: no erroneous prefix in PHP multi-line wrapper", () => {
+  const htmlPath = path.join(fixturesDir, "php-diff-highlight.html");
+  const html = fs.readFileSync(htmlPath, { encoding: "utf-8" });
+
+  // The bug: PHP's <?php starts a multi-line wrapper <span class="token php language-php">.
+  // diff-highlight generates an erroneous prefix span as the last child of this wrapper.
+  // Detect: prefix spans that are the last element child of their parent.
+  const erroneousPrefixes: unist.Node[] = [];
+
+  rehype()
+    .use(spectra, {
+      languages: ["php", "diff"],
+      plugins: ["diff-highlight"],
+    })
+    .use(() => (tree: unist.Node) => {
+      visit(tree as hast.Root, "element", (node, _, parent) => {
+        if (
+          node.tagName === "span" &&
+          Array.isArray(node.properties?.className) &&
+          node.properties.className.includes("token") &&
+          node.properties.className.includes("prefix") &&
+          parent &&
+          "children" in parent
+        ) {
+          // Check if this prefix is the last element child of its parent
+          const siblings = parent.children;
+          const nodeIndex = siblings.indexOf(node);
+          const hasElementAfter = siblings
+            .slice(nodeIndex + 1)
+            .some(
+              (sibling) =>
+                sibling.type === "element" ||
+                (sibling.type === "text" && sibling.value.trim() !== ""),
+            );
+
+          if (!hasElementAfter) {
+            erroneousPrefixes.push(node);
+          }
+        }
+      });
+    })
+    .processSync({ contents: html, path: htmlPath });
+
+  assert.strictEqual(
+    erroneousPrefixes.length,
+    0,
+    `Should not have erroneous prefix spans as last child. Found ${erroneousPrefixes.length} erroneous prefix(es).`,
+  );
 });
